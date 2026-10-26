@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="Deskflow Duo：让外接键鼠和 MacBook 内建键盘触控板，都能自然接管两台 Mac。开源自动切换工具与部署指南。"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Deskflow Duo — 两台 Mac，一张自在的桌面</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav>
+      <a class="brand" href="#"
+        >◧ <b>Deskflow Duo</b><span>by JoyMicro</span></a
+      >
+      <div>
+        <a href="#how">原理</a><a href="#setup">开始使用</a
+        ><a href="https://github.com/joymicro4/deskflow-duo">GitHub ↗</a
+        ><button id="theme" aria-label="切换深浅色">◐</button>
+      </div>
+    </nav>
+    <main>
+      <header>
+        <div class="eyebrow">
+          <span class="dot"></span> OPEN SOURCE · MADE FOR YOUR DESK
+        </div>
+        <h1>两台 Mac。<br />换一只手，<em>继续心流。</em></h1>
+        <p class="intro">
+          外接键鼠，或 MacBook 自带键盘与触控板。<br />你移动哪一端的指针，哪一端就自然接管。
+        </p>
+        <div class="actions">
+          <a class="button" href="#setup">搭好我的桌面 <span>↗</span></a
+          ><a class="quiet" href="#demo">先体验一下 ↓</a>
+        </div>
+        <p class="fine">macOS · Deskflow 1.27 · MIT · v0.1 预览版</p>
+      </header>
+      <section id="demo" class="demo" aria-labelledby="demo-title">
+        <div class="section-top">
+          <span id="demo-title">YOUR DESK, IN SYNC</span
+          ><span class="pill">交互示意 · 非实机录屏</span>
+        </div>
+        <div class="desk">
+          <article class="computer active" id="left">
+            <div class="screen">
+              <div class="window">
+                <i></i><i></i><i></i>
+                <div class="code">
+                  <span>design a calmer desk</span><br />const flow =
+                  <b>"uninterrupted"</b>;<br /><br /><span
+                    >↳ your next idea_</span
+                  >
+                </div>
+              </div>
+              <div class="cursor">➤</div>
+            </div>
+            <div class="base"></div>
+            <p>Mac 左侧 <span>外接键盘 + 鼠标</span></p>
+          </article>
+          <div class="bridge"><span id="arrow">→</span><small>TLS</small></div>
+          <article class="computer" id="right">
+            <div class="screen">
+              <div class="art">
+                <div class="orb"></div>
+                <span>Space to create.</span>
+              </div>
+              <div class="cursor">➤</div>
+            </div>
+            <div class="base"></div>
+            <p>Mac 右侧 <span>内建键盘 + 触控板</span></p>
+          </article>
+        </div>
+        <div class="demo-controls">
+          <button class="selected" id="external" aria-pressed="true">
+            ⌨ 使用外接键鼠</button
+          ><button id="builtin" aria-pressed="false">▱ 使用 MacBook</button>
+        </div>
+        <p class="status" aria-live="polite" id="status">
+          左侧主控 → 指针越过边缘，即可操作右侧 Mac
+        </p>
+        <div class="metrics">
+          <div><strong>2 套输入</strong><span>都能接管整张桌面</span></div>
+          <div>
+            <strong>0.4–0.8 秒</strong
+            ><span>原始双机环境观察值，非性能保证</span>
+          </div>
+          <div><strong>3 秒</strong><span>防抖窗口，避免来回抢控</span></div>
+        </div>
+      </section>
+      <section class="story" id="how">
+        <div>
+          <div class="eyebrow">01 / A SIMPLE IDEA</div>
+          <h2>共享的是键鼠。<br />保留的是习惯。</h2>
+        </div>
+        <p>
+          Deskflow 负责跨屏传输，Duo
+          负责识别你正在使用的物理设备。合成输入不会触发抢控；内建触控板通过
+          Multitouch 单独检测。切回
+          MacBook，先划一下触控板请求接管；键盘默认不触发切换。
+        </p>
+      </section>
+      <div class="cards">
+        <article>
+          <span>01</span>
+          <h3>识别物理输入</h3>
+          <p>
+            IOHIDManager
+            监听内建或外接设备，可按产品名称过滤。持续移动或触摸达到阈值才触发；键盘默认不抢主控。
+          </p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>改变控制方向</h3>
+          <p>
+            两端服务就绪，监督进程协调客户端连接。TLS
+            加密，双方校验指纹；同一时间收敛到一个主控方向。
+          </p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>留一条手动退路</h3>
+          <p>
+            命令一键接管。doctor
+            定位授权、设备独占和配置问题；停止或卸载时保留可恢复备份。
+          </p>
+        </article>
+      </div>
+      <section class="video-section">
+        <div class="eyebrow">02 / SEE THE FLOW</div>
+        <h2>一分钟，看懂这张桌面。</h2>
+        <video controls preload="metadata" poster="assets/poster.png">
+          <source src="assets/deskflow-duo.mp4" type="video/mp4" />
+          <track
+            kind="captions"
+            src="assets/captions.vtt"
+            srclang="zh"
+            label="中文"
+            default
+          />
+          浏览器不支持视频，请从仓库下载。
+        </video>
+        <p class="fine">动画演示 · 豆包台湾腔 AI 配音 · 所有设备均为示意</p>
+      </section>
+      <section id="setup" class="setup">
+        <div>
+          <div class="eyebrow">03 / MAKE IT YOURS</div>
+          <h2>一套可复现的<br />桌面配方。</h2>
+          <p>
+            两台 Mac，同一可信网络。先安装 Deskflow、Python 3 和 Xcode
+            命令行工具，再用配置文件描述你的桌面。
+          </p>
+          <a
+            class="quiet"
+            href="https://github.com/joymicro4/deskflow-duo#readme"
+            >阅读完整安装与排障指南 ↗</a
+          >
+        </div>
+        <div class="terminal">
+          <div>● ● ● <span>Terminal / 每台 Mac 分别执行</span></div>
+          <pre><code>git clone https://github.com/joymicro4/deskflow-duo
+cd deskflow-duo
+cp config/example.json config/local.json
+# 编辑设备名称、地址、布局与输入规则
+./scripts/install.sh config/local.json mac-left
+python3 scripts/duo.py fingerprint
+# 核对并互相信任对方证书指纹
+python3 scripts/duo.py trust PEER_SHA256
+python3 scripts/duo.py permissions
+python3 scripts/duo.py start
+python3 scripts/duo.py doctor</code></pre>
+        </div>
+      </section>
+      <section class="faq">
+        <details>
+          <summary>敲另一台 Mac 的键盘，文字会去哪里？</summary>
+          <p>
+            被控端的本地键盘始终输入本机；主控端的键盘才会跟随跨屏光标转发。请先移动你要使用的那套指针，再开始打字。键盘默认不会抢控。
+          </p>
+        </details>
+        <h2>先把边界说清楚。</h2>
+        <details>
+          <summary>我需要这套方案，还是通用控制？</summary>
+          <p>
+            只有 Apple 设备、Apple 账户条件也适合时，先尝试 macOS 通用控制。Duo
+            面向希望明确控制设备来源、TLS 信任与切换策略的双 Mac 桌面。
+          </p>
+        </details>
+        <details>
+          <summary>支持三台以上，或任意屏幕排列吗？</summary>
+          <p>
+            v0.1 自动仲裁只支持两台
+            Mac，左右顺序可配置。多机拓扑会被校验器拒绝。Mac
+            内部的多显示器边缘需要在系统设置中对齐。
+          </p>
+        </details>
+        <details>
+          <summary>为什么授权后还是没有反应？</summary>
+          <p>
+            给 Duo Auto Switch 开启输入监控，给 Deskflow
+            开启辅助功能，然后重启。Karabiner 可能独占键盘；用 doctor
+            和日志定位，不要直接卸载已有工具。
+          </p>
+        </details>
+        <details>
+          <summary>内建触控板在所有 macOS 上都能用吗？</summary>
+          <p>
+            它依赖 macOS 私有 MultitouchSupport
+            框架，系统更新可能改变行为。物理触摸读取已验证，触摸触发接管的完整链路仍待真机验收。不兼容时仍可使用外接鼠标或手动接管。本地编译版本未做
+            Apple 公证。
+          </p>
+        </details>
+      </section>
+      <footer>
+        <a class="brand" href="#">◧ Deskflow Duo</a
+        ><span>A quieter desk, by JoyMicro.</span
+        ><a href="https://github.com/joymicro4/deskflow-duo"
+          >MIT · 源码与 Skill ↗</a
+        >
+      </footer>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

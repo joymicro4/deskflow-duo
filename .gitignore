@@ -1,0 +1,11 @@
+build/
+node_modules/
+.DS_Store
+*.pem
+*.key
+.env*
+video/out/
+__pycache__/
+
+config/local.json
+video/public/*.pcm

@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    {
+      "name": "mac-left",
+      "host": "192.0.2.10",
+      "port": 24800,
+      "input": "external"
+    },
+    {
+      "name": "mac-right",
+      "host": "192.0.2.11",
+      "port": 24801,
+      "input": "builtin"
+    }
+  ],
+  "layout": ["mac-left", "mac-right"],
+  "preferred": "mac-left",
+  "pointerReports": 6,
+  "touchFrames": 25,
+  "deviceProduct": "",
+  "keyDowns": 0
+}
