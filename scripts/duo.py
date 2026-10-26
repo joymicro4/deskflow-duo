@@ -2,6 +2,8 @@
 """Deskflow Duo lifecycle. No shell-sourced configuration or remote execution."""
 
 import argparse
+import contextlib
+import fcntl
 import datetime
 import json
 import os
@@ -99,14 +101,57 @@ def config():
     return json.loads((STATE / "config.json").read_text())
 
 
-def claim():
+@contextlib.contextmanager
+def role_lock():
+    """Serialize claim/failover across the helper and supervisor processes."""
+    with (STATE / "role.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def claim_locked():
     flag = STATE / "follower"
     if flag.exists():
+        # Publish the grace timestamp before exposing the new master role.
+        pending = STATE / "took-control.pending"
+        pending.write_text(str(time.time()))
+        pending.replace(STATE / "took-control")
         flag.unlink()
-        (STATE / "took-control").write_text(str(time.time()))
         subprocess.run(
             ["launchctl", "kill", "SIGTERM", label("client")], capture_output=True
         )
+
+
+def claim():
+    with role_lock():
+        claim_locked()
+
+
+def reconcile(sc, cc, preferred):
+    # Socket observations may predate a claim. Read role + timestamp under the
+    # same lock as claim_locked(), so an old observation cannot erase its grace.
+    with role_lock():
+        flag = STATE / "follower"
+        if flag.exists():
+            if preferred and sc and cc:
+                claim_locked()
+            elif not cc:
+                ctl("kickstart", "client")
+        else:
+            subprocess.run(
+                ["launchctl", "kill", "SIGTERM", label("client")], capture_output=True
+            )
+            took = (
+                float((STATE / "took-control").read_text())
+                if (STATE / "took-control").exists()
+                else 0
+            )
+            if not sc and time.time() - took > 5:
+                flag.touch()
+                ctl("kickstart", "client")
 
 
 def connections(port, server):
@@ -138,27 +183,10 @@ def connections(port, server):
 def supervise():
     c = config()
     me, peer = validate(c, c["localNode"])
-    flag = STATE / "follower"
     while True:
         sc = connections(me["port"], True)
         cc = connections(peer["port"], False)
-        if flag.exists():
-            if c["preferred"] == me["name"] and sc and cc:
-                claim()
-            elif not cc:
-                ctl("kickstart", "client")
-        else:
-            subprocess.run(
-                ["launchctl", "kill", "SIGTERM", label("client")], capture_output=True
-            )
-            took = (
-                float((STATE / "took-control").read_text())
-                if (STATE / "took-control").exists()
-                else 0
-            )
-            if not sc and time.time() - took > 5:
-                flag.touch()
-                ctl("kickstart", "client")
+        reconcile(sc, cc, c["preferred"] == me["name"])
         time.sleep(0.5)
 
 
