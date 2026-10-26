@@ -528,6 +528,10 @@ def doctor():
             if not (LA / f"{PREFIX}{role}.plist").exists():
                 problems.append(role + ": LaunchAgent missing")
         fwd = c.get("keyboardForwarding", {"mode": "off"})
+        if fwd["mode"] == "on" and (STATE / "kbfwd-disabled").exists():
+            problems.append(
+                "keyboard forwarding emergency-disabled; use Control-Option-Command-K to restore intentionally"
+            )
         if fwd["mode"] != "off":
             try:
                 shared_key()

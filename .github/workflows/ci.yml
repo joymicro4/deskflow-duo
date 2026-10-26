@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: bash -n scripts/build.sh scripts/install.sh
+      - run: for script in scripts/*.sh; do bash -n "$script"; done
       - run: ./scripts/build.sh
         env:
           SIGN_IDENTITY: "-"
