@@ -5,22 +5,23 @@ export const Effect = () => (
     number="02"
     title={
       <>
-        换一只手，<span style={{ color: "#bcd28e" }}>继续心流。</span>
+        两套输入。
+        <span style={{ color: "#bcd28e" }}>不用同一个 Apple ID。</span>
       </>
     }
-    subtitle="鼠标或触控板请求换向；键盘默认不抢主控。"
+    subtitle="外接键鼠控制两台，MacBook 自带键鼠也能控制 mini。"
   >
     <Desk right />
     <div
       style={{
         position: "absolute",
-        top: 815,
+        top: 825,
         left: 130,
         fontSize: 28,
         color: "#aabd99",
       }}
     >
-      外接鼠标 ⇄ 内建触控板
+      你的账号，你的习惯，都可以保留。
     </div>
   </Frame>
 );

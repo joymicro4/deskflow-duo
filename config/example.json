@@ -1,22 +1,30 @@
 {
   "nodes": [
     {
-      "name": "mac-left",
+      "name": "mini",
       "host": "192.0.2.10",
       "port": 24800,
       "input": "external"
     },
     {
-      "name": "mac-right",
+      "name": "macbook",
       "host": "192.0.2.11",
       "port": 24801,
       "input": "builtin"
     }
   ],
-  "layout": ["mac-left", "mac-right"],
-  "preferred": "mac-left",
+  "layout": [
+    "mini",
+    "macbook"
+  ],
+  "preferred": "mini",
   "pointerReports": 6,
   "touchFrames": 25,
   "deviceProduct": "",
-  "keyDowns": 0
+  "keyDowns": 0,
+  "keyboardForwarding": {
+    "mode": "on",
+    "listener": "mini",
+    "port": 24910
+  }
 }

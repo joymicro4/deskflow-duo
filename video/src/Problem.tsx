@@ -5,22 +5,22 @@ export const Problem = () => (
     number="01"
     title={
       <>
-        两台 Mac。<span style={{ color: "#bcd28e" }}>一张桌面。</span>
+        新 Mac mini。<span style={{ color: "#bcd28e" }}>熟悉的 MacBook。</span>
       </>
     }
-    subtitle="外接键鼠很顺手。换回 MacBook，谁来接管？"
+    subtitle="两台混着用，账号不同，也想共享键鼠。"
   >
     <Desk />
     <div
       style={{
         position: "absolute",
-        top: 815,
+        top: 825,
         left: 130,
         fontSize: 28,
         color: "#aabd99",
       }}
     >
-      少一次切换，多一点专注。
+      一张桌面，不必先合并账号。
     </div>
   </Frame>
 );

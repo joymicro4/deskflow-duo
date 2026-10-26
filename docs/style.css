@@ -551,3 +551,150 @@ footer .brand {
     transition: none;
   }
 }
+h1 {
+  font-size: clamp(36px, 6vw, 76px);
+  letter-spacing: -3px;
+}
+.intro strong {
+  color: var(--fg);
+  font-weight: 550;
+}
+.computer .cursor {
+  display: none;
+}
+.computer.cursor-target .cursor {
+  display: block;
+}
+.monitor-stand {
+  height: 10px;
+  width: 60px;
+  margin: auto;
+  background: #89948c;
+}
+.mini-unit {
+  height: 25px;
+  width: 80px;
+  border-radius: 6px;
+  background: linear-gradient(#a8b2a9, #77857a);
+  margin: auto;
+  color: #354639;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.computer:first-child {
+  position: relative;
+}
+.computer:first-child p {
+  margin-top: 5px;
+}
+.cursor-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.cursor-controls button {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 20px;
+  padding: 7px 12px;
+  font-size: 11px;
+}
+.cursor-controls button.selected {
+  background: var(--panel);
+  color: var(--fg);
+}
+.route-output {
+  text-align: center;
+  font-size: 15px;
+  padding: 12px 0;
+  color: var(--muted);
+}
+.route-output strong {
+  color: var(--accent);
+  margin-left: 10px;
+}
+.comparison {
+  margin-top: 95px;
+}
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  line-height: 1.7;
+  min-width: 620px;
+}
+th,
+td {
+  padding: 20px 22px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  background: var(--soft);
+  font-weight: 550;
+}
+td:nth-child(2) {
+  background: var(--panel);
+}
+tr:last-child td {
+  border-bottom: 0;
+}
+td strong {
+  color: var(--accent);
+}
+.steps {
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 2.3;
+  color: var(--muted);
+}
+@media (max-width: 700px) {
+  h1 {
+    font-size: 36px;
+    letter-spacing: -1.5px;
+  }
+  .intro {
+    font-size: 14px;
+  }
+  .mini-unit {
+    height: 17px;
+    width: 55px;
+  }
+  .monitor-stand {
+    height: 6px;
+    width: 35px;
+  }
+  .desk {
+    align-items: flex-start;
+  }
+  .bridge {
+    padding-top: 55px;
+  }
+  .cursor-controls {
+    gap: 7px;
+    font-size: 10px;
+  }
+  .cursor-controls button {
+    font-size: 10px;
+  }
+  .route-output {
+    font-size: 12px;
+  }
+  .comparison {
+    margin-top: 65px;
+  }
+  nav a[href="#compare"] {
+    display: none;
+  }
+}

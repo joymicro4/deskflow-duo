@@ -1,41 +1,40 @@
 ---
 name: deskflow-duo
-description: Configures physical-pointer takeover between two Macs using Deskflow Duo, with TLS trust, device filters and permission guidance. Use when a user asks to share an external mouse and MacBook trackpad across two Macs or diagnose automatic Deskflow direction switching.
+description: Configures two Macs so a Mac mini's external keyboard/mouse and a MacBook's built-in keyboard/trackpad can control both, without a shared Apple Account. Use when setting up Deskflow Duo, encrypted keyboard forwarding, permissions, pairing or automatic takeover.
 ---
 
-# Deskflow Duo
+# Deskflow Duo v0.2
 
-Use the repository's `scripts/duo.py`; locate the repo from user context or ask for its path. Read its README before making changes. The skill directory is not a self-contained installer.
+Locate the repository from user context; read README and CHANGELOG. This skill uses the repository scripts and is not a self-contained installer.
 
-## Inspect first
+## Discover and prepare
 
-1. Establish exactly two Macs, left/right order, stable addresses, Deskflow names, ports, macOS versions and which physical pointer should trigger each Mac.
-2. Inspect existing Deskflow jobs/configuration read-only. Never overwrite a working setup. Explain the proposed local paths and changes before an authorized install.
-3. Read `config/example.json`. Generate local configuration without publishing actual hostnames/addresses. More than two machines are not supported; do not invent arbitration.
-4. Confirm Python 3, Xcode Command Line Tools and official Deskflow 1.27.0. Verify downloaded software against official assets and signatures. Do not install cloud services or change DNS/firewall automatically.
+1. Confirm exactly two Macs, their left/right order, stable addresses, Deskflow names/ports, macOS versions and physical pointer sources. Default scenario: mini + macbook; config/air-pro.json is another example.
+2. Inspect existing jobs/configuration read-only. Never replace a working setup or uninstall Karabiner without user authorization. Explain paths and changes before installing.
+3. Confirm official Deskflow 1.27.0, Python 3 and Command Line Tools. Do not change DNS or disable a firewall. Different Apple accounts are supported; organizational policies and device permissions still apply.
+4. Generate local JSON from config/example.json. Exactly two nodes; select one keyboard-channel listener with an independent port. Do not invent multi-node arbitration.
 
-## Configure each Mac
+## Install and pair
 
-- Use `external` for the Mac with USB/Bluetooth mouse; `builtin` for the MacBook trackpad. `keyDowns: 0` is the default: keyboard does not claim control.
-- Run `python3 scripts/duo.py install --config CONFIG --node NAME --dry-run` first.
-- After the user authorizes local setup, run `./scripts/install.sh CONFIG NAME`. Install does not start listeners. Backups are retained in the state directory.
-- Run `fingerprint` on each Mac. Ask the user to independently verify the peer SHA-256, then `trust PEER_SHA256`. Never transport private PEM files or disable certificate checking.
-- Run `permissions`. Guide the user to System Settings → Privacy & Security: Deskflow needs Accessibility and Input Monitoring; Duo Auto Switch needs Input Monitoring. The app is in `~/Library/Application Support/DeskflowDuo/Duo Auto Switch.app`. Use ⌘⇧G in the chooser if needed.
-- **The user must click permission toggles personally.** Do not edit TCC databases, bypass prompts, or claim permissions were granted from a successful build alone.
-- Run `start`; if permissions were changed, `stop` then `start`. Run `doctor` and inspect only relevant local log lines.
+- Run `python3 scripts/duo.py install --config CONFIG --node NODE --dry-run`, then the authorized `./scripts/install.sh CONFIG NODE` on each Mac. Installation does not start listeners. Keep keys=0: pointer claims control, keyboard does not.
+- Exchange public `fingerprint` output over a trusted channel, verify it, then run `trust PEER_CERT_SHA256` on each. Never transmit private certificate PEMs or disable verification.
+- Run `keygen` on one Mac. Transfer its state-directory fwd.key privately via an already authenticated encrypted file channel, use `key-import PRIVATE_FILE` on the other, then compare `key-fingerprint` values. The binary key is exactly 32 bytes and mode 0600. Never print it, use clipboard/chat, include it in an argv, or commit it. Do not replace an existing key silently.
+- Both ends must use the same version; the session-nonce protocol is incompatible with the earlier running prototype.
+- Run `permissions`. Guide the user to grant **Input Monitoring and Accessibility to both Deskflow and Duo Auto Switch on both Macs**. Duo is at `~/Library/Application Support/DeskflowDuo/Duo Auto Switch.app`; use ⌘⇧G in the chooser.
+- Permission toggles must be clicked by the user. Never modify TCC databases or claim a successful build proves authorization.
+- Run `start`; stop/start after permission changes. Run `doctor`, inspect relevant status/count logs, and verify authenticated pong and event tap. Logs contain no typed characters.
 
-## Acceptance
+## Acceptance: four combinations
 
-1. Move external mouse while that Mac is follower. Confirm one takeover and cross-screen pointer/typing.
-2. While the MacBook is follower, slide its built-in trackpad for at least half a second. Confirm `touch frames` takeover, then cross the configured edge.
-3. Type on both keyboards without moving pointers. Confirm no takeover; explain client physical keyboards always type locally.
-4. Check the 3-second guard, simultaneous physical use, peer disconnect, sleep/wake and manual `claim`.
-5. Record what was actually observed. The reference implementation has confirmed physical touch capture but not yet a positive touch-triggered takeover test. Never present animation as hardware evidence.
+With mini as controller, put cursor first on mini and then MacBook; type with each keyboard. Repeat with MacBook as controller. All four rows should route **both keyboards to the cursor's Mac**. This reference behavior was confirmed by the user; do not claim a new generalized install has been tested without doing it.
 
-## Recovery and boundaries
+Check physical mouse/trackpad takeover, 3-second guard, Command shortcuts/keyUp flags, simultaneous use, disconnect while holding a modifier, timeout, sleep/wake and manual claim. Standalone protocol tests cover 13-byte messages, cryptographic validation and replay without hooking real keyboards.
 
-- `doctor` is read-only. `0xe00002c5` can mean Karabiner/device seizure; do not uninstall other software without explicit approval.
-- MultitouchSupport is private; stationary contact may trigger and wake recovery is unverified. Offer manual `claim` or Universal Control if suitable.
-- Local signing uses an identifier-only designated requirement, which can allow another app with the same ID to inherit permission. Explain this tradeoff; do not use unrelated company certificates. Production distribution requires proper signing/notarization.
-- Stop before reinstalling config changes. `uninstall` stops/removes Duo LaunchAgents while retaining state, keys and backups; do not delete these or unrelated files without explicit approval.
-- Keep real addresses, usernames, tokens, screenshots and logs out of public repos/issues. Redact before sharing.
+## Emergency and recovery
+
+- Physical **⌃⌥⌘K** toggles forwarding with a notification. State persists in kbfwd-disabled across restarts/reinstalls. Do not use double-Esc or clear the emergency state automatically.
+- Channel failure/permission failure disables interception and allows local typing. A few queued events may be lost during abrupt failure. Secure Input (password fields) may prevent capture; never bypass it. Input method/layout follows the controller.
+- `claim` or Duo Take Control.app manually requests control. `stop`/`uninstall` affect only Duo jobs; state/keys/backups remain.
+- `0xe00002c5` may mean device seizure. Private MultitouchSupport and wake recovery need per-version tests; stationary touch counts. Offer manual fallback.
+- Identifier-only local signing reduces reauthorization churn but permits same-ID permission inheritance. Explain it; use no unrelated signing identity. Formal distribution needs certificate-bound signing/notarization.
+- Keep addresses, hostnames, account identifiers, keys, logs and real screenshots private. Never send credentials to a colleague or public issue.

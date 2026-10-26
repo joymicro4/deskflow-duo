@@ -1,3 +1,4 @@
+import AppKit
 // Physical pointer activity claims control. Keyboard claiming is opt-in (keys=N).
 // 只看 IOHID 物理设备；Deskflow 用 CGEventPost 注入的事件不经过 IOHID，不会触发。
 // 逐个设备 IOHIDDeviceOpen（不 seize），被别人独占（如 Karabiner 抢了内建键盘）的跳过。
@@ -13,26 +14,45 @@ import Foundation
 import IOKit.hid
 
 var productFilter = ""
-var mode = "external", useKarabiner = false, minEvents = 6, diagSec = 0.0, minTouch = 25, minKeys = 0
+var mode = "external"
+var useKarabiner = false
+var minEvents = 6
+var diagSec = 0.0
+var minTouch = 25
+var minKeys = 0
 for a in CommandLine.arguments.dropFirst() {
-  if a.hasPrefix("product=") { productFilter = String(a.dropFirst(8)) }
-  else if a == "builtin" || a == "external" { mode = a }
-  else if a == "karabiner" { useKarabiner = true }
-  else if a.hasPrefix("keys="), let n = Int(a.dropFirst(5)) { minKeys = n }
-  else if a.hasPrefix("ptr="), let n = Int(a.dropFirst(4)) { minEvents = n }
-  else if a.hasPrefix("diag="), let n = Double(a.dropFirst(5)) { diagSec = n }
-  else if a.hasPrefix("touch="), let n = Int(a.dropFirst(6)) { minTouch = n }
+  if a.hasPrefix("product=") {
+    productFilter = String(a.dropFirst(8))
+  } else if a == "builtin" || a == "external" {
+    mode = a
+  } else if a == "karabiner" {
+    useKarabiner = true
+  } else if a.hasPrefix("keys="), let n = Int(a.dropFirst(5)) {
+    minKeys = n
+  } else if a.hasPrefix("ptr="), let n = Int(a.dropFirst(4)) {
+    minEvents = n
+  } else if a.hasPrefix("diag="), let n = Double(a.dropFirst(5)) {
+    diagSec = n
+  } else if a.hasPrefix("touch="), let n = Int(a.dropFirst(6)) {
+    minTouch = n
+  }
 }
 let home = FileManager.default.homeDirectoryForCurrentUser.path
-let kvmDir = ProcessInfo.processInfo.environment["DUO_STATE_DIR"] ?? "\(home)/Library/Application Support/DeskflowDuo"
+let kvmDir =
+  ProcessInfo.processInfo.environment["DUO_STATE_DIR"]
+  ?? "\(home)/Library/Application Support/DeskflowDuo"
 let flag = "\(kvmDir)/follower"
 let takeControl = "\(kvmDir)/take-control.sh"
-let windowSec = 0.5, settleSec = 3.0, cooldownSec = 3.0
+let windowSec = 0.5
+let settleSec = 3.0
+let cooldownSec = 3.0
 let started = Date().timeIntervalSince1970
 
 func log(_ s: String) {
-  let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-  print("\(f.string(from: Date())) \(s)"); fflush(stdout)
+  let f = DateFormatter()
+  f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+  print("\(f.string(from: Date())) \(s)")
+  fflush(stdout)
 }
 func prop(_ d: IOHIDDevice, _ k: String) -> Any? { IOHIDDeviceGetProperty(d, k as CFString) }
 func isKarabinerKeyboard(_ d: IOHIDDevice) -> Bool {
@@ -42,7 +62,9 @@ func accept(_ d: IOHIDDevice) -> Bool {
   let builtIn = (prop(d, "Built-In") as? NSNumber)?.boolValue ?? false
   let transport = (prop(d, kIOHIDTransportKey) as? String) ?? ""
   let product = (prop(d, kIOHIDProductKey) as? String) ?? ""
-  if !productFilter.isEmpty && !product.localizedCaseInsensitiveContains(productFilter) { return false }
+  if !productFilter.isEmpty && !product.localizedCaseInsensitiveContains(productFilter) {
+    return false
+  }
   if mode == "builtin" && useKarabiner && isKarabinerKeyboard(d) { return true }
   if product.localizedCaseInsensitiveContains("virtual") { return false }
   if mode == "builtin" { return builtIn && ["FIFO", "SPI", "I2C"].contains(transport) }
@@ -56,63 +78,97 @@ func label(_ d: IOHIDDevice) -> String {
   return "\(p) [\(t)] usage \(up):\(u)"
 }
 
-var events: [Double] = [], keyDowns: [Double] = [], touches: [Double] = [], lastTake = 0.0
-var opened = Set<UInt64>(), counts: [String: Int] = [:]
+var events: [Double] = []
+var keyDowns: [Double] = []
+var touches: [Double] = []
+var lastTake = 0.0
+var opened = Set<UInt64>()
+var counts: [String: Int] = [:]
 func now() -> Double { Date().timeIntervalSince1970 }
 
 func maybeTake() {
   let t = now()
-  events.removeAll { t - $0 > windowSec }; keyDowns.removeAll { t - $0 > 1.5 }; touches.removeAll { t - $0 > windowSec }
+  events.removeAll { t - $0 > windowSec }
+  keyDowns.removeAll { t - $0 > 1.5 }
+  touches.removeAll { t - $0 > windowSec }
   guard FileManager.default.fileExists(atPath: flag) else { return }  // 已是主控
   if let m = (try? FileManager.default.attributesOfItem(atPath: flag))?[.modificationDate] as? Date,
-     t - m.timeIntervalSince1970 < settleSec { return }
+    t - m.timeIntervalSince1970 < settleSec
+  {
+    return
+  }
   if t - lastTake < cooldownSec { return }
   events.removeAll { t - $0 > windowSec }
   keyDowns.removeAll { t - $0 > 1.5 }
   touches.removeAll { t - $0 > windowSec }
-  guard events.count >= minEvents || (minKeys > 0 && keyDowns.count >= minKeys) || touches.count >= minTouch else { return }
+  guard
+    events.count >= minEvents || (minKeys > 0 && keyDowns.count >= minKeys)
+      || touches.count >= minTouch
+  else { return }
   lastTake = t
-  log("physical input (\(events.count) reports, \(keyDowns.count) keys, \(touches.count) touch frames) -> take control")
-  let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/sh"); p.arguments = [takeControl, "quiet"]
+  log(
+    "physical input (\(events.count) reports, \(keyDowns.count) keys, \(touches.count) touch frames) -> take control"
+  )
+  let p = Process()
+  p.executableURL = URL(fileURLWithPath: "/bin/sh")
+  p.arguments = [takeControl, "quiet"]
   try? p.run()
 }
 
 let valueCB: IOHIDValueCallback = { ctx, _, _, value in
   let elem = IOHIDValueGetElement(value)
   let dev = IOHIDElementGetDevice(elem)
-  let page = IOHIDElementGetUsagePage(elem), usage = IOHIDElementGetUsage(elem)
+  let page = IOHIDElementGetUsagePage(elem)
+  let usage = IOHIDElementGetUsage(elem)
   let v = IOHIDValueGetIntegerValue(value)
   let t = now()
   if diagSec > 0 && t - started < diagSec { counts[label(dev), default: 0] += 1 }
   if page == UInt32(kHIDPage_KeyboardOrKeypad) {
-    guard usage >= 4 && usage <= 0xE7 && v == 1 else { return }   // 真实按键按下
+    guard usage >= 4 && usage <= 0xE7 && v == 1 else { return }  // 真实按键按下
     if minKeys == 0 { return }
     keyDowns.append(t)
-  } else if page == UInt32(kHIDPage_GenericDesktop) || page == UInt32(kHIDPage_Button) || page == UInt32(kHIDPage_Digitizer) {
-    guard v != 0 else { return }   // 移动/滚动/点击/触摸
+  } else if page == UInt32(kHIDPage_GenericDesktop) || page == UInt32(kHIDPage_Button)
+    || page == UInt32(kHIDPage_Digitizer)
+  {
+    guard v != 0 else { return }  // 移动/滚动/点击/触摸
     events.append(t)
-  } else { return }
+  } else {
+    return
+  }
   maybeTake()
 }
 
 func openDevice(_ dev: IOHIDDevice) {
-  var rid: UInt64 = 0; IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(dev), &rid)
+  var rid: UInt64 = 0
+  IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(dev), &rid)
   if opened.contains(rid) { return }
-  guard accept(dev) else { log("ignore: \(label(dev))"); opened.insert(rid); return }
+  guard accept(dev) else {
+    log("ignore: \(label(dev))")
+    opened.insert(rid)
+    return
+  }
   let r = IOHIDDeviceOpen(dev, IOOptionBits(kIOHIDOptionsTypeNone))
   opened.insert(rid)
-  if r != kIOReturnSuccess { log("skip (open=\(String(format: "0x%08x", r))): \(label(dev))"); return }
+  if r != kIOReturnSuccess {
+    log("skip (open=\(String(format: "0x%08x", r))): \(label(dev))")
+    return
+  }
   IOHIDDeviceRegisterInputValueCallback(dev, valueCB, nil)
   IOHIDDeviceScheduleWithRunLoop(dev, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
   log("WATCH: \(label(dev))")
 }
 
 let access = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-log("mode=\(mode) karabiner=\(useKarabiner) ptr=\(minEvents) input-monitoring=\(access == kIOHIDAccessTypeGranted ? "granted" : access == kIOHIDAccessTypeDenied ? "denied" : "unknown")")
+log(
+  "mode=\(mode) karabiner=\(useKarabiner) ptr=\(minEvents) input-monitoring=\(access == kIOHIDAccessTypeGranted ? "granted" : access == kIOHIDAccessTypeDenied ? "denied" : "unknown")"
+)
 if access != kIOHIDAccessTypeGranted {
   _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
   // 等 the user 在「输入监控」里打开后，由 launchd 重启生效
-  DispatchQueue.main.asyncAfter(deadline: .now() + 20) { log("no input-monitoring access yet, restarting"); exit(1) }
+  DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+    log("no input-monitoring access yet, restarting")
+    exit(1)
+  }
 }
 
 let mgr = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -124,29 +180,42 @@ let match: [[String: Int]] = [
 ]
 IOHIDManagerSetDeviceMatchingMultiple(mgr, match as CFArray)
 IOHIDManagerRegisterDeviceMatchingCallback(mgr, { _, _, _, dev in openDevice(dev) }, nil)
-IOHIDManagerRegisterDeviceRemovalCallback(mgr, { _, _, _, dev in
-  var rid: UInt64 = 0; IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(dev), &rid)
-  opened.remove(rid)
-  IOHIDDeviceClose(dev, IOOptionBits(kIOHIDOptionsTypeNone))
-}, nil)
+IOHIDManagerRegisterDeviceRemovalCallback(
+  mgr,
+  { _, _, _, dev in
+    var rid: UInt64 = 0
+    IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(dev), &rid)
+    opened.remove(rid)
+    IOHIDDeviceClose(dev, IOOptionBits(kIOHIDOptionsTypeNone))
+  }, nil)
 IOHIDManagerScheduleWithRunLoop(mgr, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
 if let devs = IOHIDManagerCopyDevices(mgr) as? Set<IOHIDDevice> { devs.forEach(openDevice) }
 
 // ---- 内建触控板：MultitouchSupport（私有框架，dlopen）----
-typealias MTCallback = @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, Int32, Double, Int32) -> Int32
-if mode == "builtin", let h = dlopen("/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport", RTLD_NOW),
-   let fList = dlsym(h, "MTDeviceCreateList"), let fReg = dlsym(h, "MTRegisterContactFrameCallback"),
-   let fStart = dlsym(h, "MTDeviceStart"), let fBuiltIn = dlsym(h, "MTDeviceIsBuiltIn") {
+typealias MTCallback =
+  @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, Int32, Double, Int32) -> Int32
+if mode == "builtin",
+  let h = dlopen(
+    "/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport", RTLD_NOW),
+  let fList = dlsym(h, "MTDeviceCreateList"), let fReg = dlsym(h, "MTRegisterContactFrameCallback"),
+  let fStart = dlsym(h, "MTDeviceStart"), let fBuiltIn = dlsym(h, "MTDeviceIsBuiltIn")
+{
   let createList = unsafeBitCast(fList, to: (@convention(c) () -> Unmanaged<CFArray>?).self)
-  let register = unsafeBitCast(fReg, to: (@convention(c) (UnsafeMutableRawPointer?, MTCallback) -> Void).self)
-  let start = unsafeBitCast(fStart, to: (@convention(c) (UnsafeMutableRawPointer?, Int32) -> Void).self)
-  let isBuiltIn = unsafeBitCast(fBuiltIn, to: (@convention(c) (UnsafeMutableRawPointer?) -> Bool).self)
+  let register = unsafeBitCast(
+    fReg, to: (@convention(c) (UnsafeMutableRawPointer?, MTCallback) -> Void).self)
+  let start = unsafeBitCast(
+    fStart, to: (@convention(c) (UnsafeMutableRawPointer?, Int32) -> Void).self)
+  let isBuiltIn = unsafeBitCast(
+    fBuiltIn, to: (@convention(c) (UnsafeMutableRawPointer?) -> Bool).self)
   let cb: MTCallback = { _, _, n, _, _ in
     if n > 0 {
       DispatchQueue.main.async {
         let t = now()
-        if diagSec > 0 && t - started < diagSec { counts["builtin trackpad (multitouch)", default: 0] += 1 }
-        touches.append(t); maybeTake()
+        if diagSec > 0 && t - started < diagSec {
+          counts["builtin trackpad (multitouch)", default: 0] += 1
+        }
+        touches.append(t)
+        maybeTake()
       }
     }
     return 0
@@ -155,17 +224,54 @@ if mode == "builtin", let h = dlopen("/System/Library/PrivateFrameworks/Multitou
     for d in arr {
       let ptr = Unmanaged.passUnretained(d).toOpaque()
       guard isBuiltIn(ptr) else { continue }
-      register(ptr, cb); start(ptr, 0)
+      register(ptr, cb)
+      start(ptr, 0)
       log("WATCH: builtin trackpad (multitouch)")
     }
   }
 }
 
-if mode == "builtin" { log("Multitouch uses a private framework; verify touch-triggered takeover and wake recovery manually") }
+if mode == "builtin" {
+  log(
+    "Multitouch uses a private framework; verify touch-triggered takeover and wake recovery manually"
+  )
+}
 if diagSec > 0 {
   Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { t in
-    if !counts.isEmpty { log("diag: " + counts.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", ")); counts.removeAll() }
+    if !counts.isEmpty {
+      log("diag: " + counts.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", "))
+      counts.removeAll()
+    }
     if now() - started > diagSec { t.invalidate() }
   }
 }
+// Recreate HID, Multitouch, tap and channel cleanly after waking. launchd restarts us.
+let wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+  forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+) { _ in
+  releaseRemote()
+  releaseInjected()
+  log("wake detected; restarting input listeners")
+  exit(0)
+}
+let sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+  forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+) { _ in
+  releaseRemote()
+  releaseInjected()
+  if let connection = conn { closeChannel(connection) }
+}
+var terminationSources: [DispatchSourceSignal] = []
+for sig in [SIGTERM, SIGINT] {
+  signal(sig, SIG_IGN)
+  let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+  source.setEventHandler {
+    releaseRemote()
+    releaseInjected()
+    exit(0)
+  }
+  source.resume()
+  terminationSources.append(source)
+}
+startKbFwd()
 CFRunLoopRun()

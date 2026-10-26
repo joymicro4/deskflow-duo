@@ -39,7 +39,7 @@ class InstallTest(unittest.TestCase):
                 "--config",
                 str(ROOT / "config/example.json"),
                 "--node",
-                "mac-right",
+                "macbook",
                 "--core",
                 str(core),
             )

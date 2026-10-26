@@ -59,6 +59,19 @@ def validate(c, me):
         raise ValueError("invalid key threshold")
     if not isinstance(c.get("deviceProduct", ""), str):
         raise ValueError("invalid product filter")
+    fwd = c.get("keyboardForwarding", {"mode": "off"})
+    if fwd.get("mode") not in ("off", "observe", "on"):
+        raise ValueError("keyboardForwarding.mode must be off/observe/on")
+    if fwd["mode"] != "off":
+        if fwd.get("listener") not in names:
+            raise ValueError("keyboard forwarding listener must reference a node")
+        port = fwd.get("port")
+        if (
+            type(port) is not int
+            or not 1024 <= port <= 65535
+            or port in [n["port"] for n in nodes]
+        ):
+            raise ValueError("keyboard forwarding needs a separate valid TCP port")
     return next(n for n in nodes if n["name"] == me), next(
         n for n in nodes if n["name"] != me
     )
@@ -360,6 +373,16 @@ def install(a):
             f"product={c.get('deviceProduct', '')}",
         ],
     }
+    fwd = c.get("keyboardForwarding", {"mode": "off"})
+    args["auto"].append("kbfwd=" + fwd["mode"])
+    if fwd["mode"] != "off":
+        listener = next(n for n in c["nodes"] if n["name"] == fwd["listener"])
+        channel = (
+            f"listen:{fwd['port']}"
+            if me["name"] == listener["name"]
+            else f"connect:{listener['host']}:{fwd['port']}"
+        )
+        args["auto"].append("fwd=" + channel)
     LA.mkdir(parents=True, exist_ok=True)
     (STATE / "logs").mkdir(exist_ok=True)
     for role, argv in args.items():
@@ -398,13 +421,81 @@ def trust(fp):
     fp = fp.replace(":", "").lower()
     if not re.fullmatch("[0-9a-f]{64}", fp):
         raise ValueError("expected a SHA-256 certificate fingerprint")
-    # Deskflow fingerprint DB format: version:algorithm:colon-separated digest.
+    # Deskflow fingerprint DB format: version:algorithm:lowercase hex digest.
     line = "v2:sha256:" + fp + "\n"
     for role in ("server", "client"):
         p = STATE / role / "tls/trusted-servers"
         write(p, line)
         write(STATE / role / "tls/trusted-clients", line)
     print("Peer fingerprint stored. Verify it out of band on the other Mac.")
+
+
+def shared_key():
+    p = STATE / "fwd.key"
+    if not p.exists() or p.stat().st_mode & 0o777 != 0o600 or p.stat().st_size != 32:
+        raise ValueError(
+            "keyboard forwarding requires a 32-byte fwd.key with mode 0600; use keygen or key-import"
+        )
+    return p.read_bytes()
+
+
+def keygen():
+    import secrets
+
+    STATE.mkdir(parents=True, exist_ok=True)
+    os.chmod(STATE, 0o700)
+    fd = os.open(STATE / "fwd.key", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(secrets.token_bytes(32))
+    print(
+        "Shared key generated privately. Transfer via an authenticated encrypted channel, never paste or commit it."
+    )
+
+
+def key_import(path):
+    data = sys.stdin.buffer.read(33) if path == "-" else pathlib.Path(path).read_bytes()
+    if len(data) != 32:
+        raise ValueError("expected a 32-byte binary key file")
+    STATE.mkdir(parents=True, exist_ok=True)
+    os.chmod(STATE, 0o700)
+    p = STATE / "fwd.key"
+    if p.exists():
+        raise ValueError(
+            "a key already exists; stop both peers and back it up before explicitly rotating"
+        )
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    print(
+        "Shared key imported privately. Compare key-fingerprint on both Macs before starting."
+    )
+
+
+def pair(target):
+    # Send the key only on ssh stdin, never through argv, logs or a local file.
+    if target.startswith("-") or not re.fullmatch(
+        r"(?:[A-Za-z0-9_.-]+@)?[A-Za-z0-9_.:-]+", target
+    ):
+        raise ValueError("invalid SSH destination")
+    key = shared_key()
+    remote = 'python3 "$HOME/Library/Application Support/DeskflowDuo/scripts/duo.py"'
+    run(
+        [
+            "ssh",
+            "-o",
+            "StrictHostKeyChecking=yes",
+            "--",
+            target,
+            remote + " key-import - && " + remote + " key-fingerprint",
+        ],
+        input=key,
+    )
+    import hashlib
+
+    print("Local shared key SHA-256: " + hashlib.sha256(key).hexdigest())
+    print(
+        "Verify that the local and remote fingerprints match. No key was printed or stored in a temporary file."
+    )
 
 
 def doctor():
@@ -436,11 +527,29 @@ def doctor():
         for role in ("server", "client", "supervisor", "auto"):
             if not (LA / f"{PREFIX}{role}.plist").exists():
                 problems.append(role + ": LaunchAgent missing")
+        fwd = c.get("keyboardForwarding", {"mode": "off"})
+        if fwd["mode"] != "off":
+            try:
+                shared_key()
+            except ValueError as error:
+                problems.append(str(error))
         logs = STATE / "logs/auto.log"
         if logs.exists():
             tail = logs.read_text(errors="replace")[-12000:]
             if "input-monitoring=granted" not in tail:
                 problems.append("Input Monitoring not confirmed; open permissions")
+            if fwd["mode"] == "on":
+                if (
+                    "accessibility=true" not in tail
+                    or "kbfwd tap ok (intercept)" not in tail
+                ):
+                    problems.append(
+                        "Duo Accessibility/event tap not confirmed; grant both permissions"
+                    )
+                if "fwd authenticated pong received" not in tail:
+                    problems.append(
+                        "keyboard channel not authenticated; check shared key, port and peer permissions"
+                    )
             if "0xe00002c5" in tail:
                 problems.append(
                     "HID device seized; inspect Karabiner, do not uninstall automatically"
@@ -484,9 +593,13 @@ def main():
         "supervise",
         "fingerprint",
         "permissions",
+        "keygen",
+        "key-fingerprint",
     ):
         sub.add_parser(cmd)
     sub.add_parser("trust").add_argument("fingerprint")
+    sub.add_parser("key-import").add_argument("file")
+    sub.add_parser("pair").add_argument("--ssh", required=True)
     a = p.parse_args()
     if a.command == "install":
         install(a)
@@ -498,6 +611,16 @@ def main():
         supervise()
     elif a.command == "trust":
         trust(a.fingerprint)
+    elif a.command == "pair":
+        pair(a.ssh)
+    elif a.command == "keygen":
+        keygen()
+    elif a.command == "key-import":
+        key_import(a.file)
+    elif a.command == "key-fingerprint":
+        import hashlib
+
+        print("Shared key SHA-256: " + hashlib.sha256(shared_key()).hexdigest())
     elif a.command == "fingerprint":
         run(
             [
@@ -512,7 +635,7 @@ def main():
         )
     elif a.command == "permissions":
         print(
-            "System Settings > Privacy & Security: Input Monitoring = Duo Auto Switch; Accessibility = Deskflow. Quit/restart after granting. Never modify TCC database."
+            "System Settings > Privacy & Security: Input Monitoring + Accessibility = Duo Auto Switch and Deskflow. Quit/restart after granting. Never modify TCC database."
         )
         run(
             [
@@ -522,6 +645,8 @@ def main():
         )
     elif a.command in ("start", "stop", "uninstall"):
         if a.command == "start":
+            if config().get("keyboardForwarding", {"mode": "off"})["mode"] != "off":
+                shared_key()
             for role in ("server", "client"):
                 if (
                     not (STATE / role / "tls/trusted-servers").exists()

@@ -4,53 +4,69 @@ export const Physical = () => (
     number="03"
     title={
       <>
-        只认<span style={{ color: "#bcd28e" }}>物理指针。</span>
+        四种组合。<span style={{ color: "#bcd28e" }}>键盘跟随光标。</span>
       </>
     }
-    subtitle="被控端的本地键盘只输入本机。先动指针，再打字。"
+    subtitle="敲任一副键盘，文字都去光标所在的 Mac；键盘不抢控。"
   >
     <div
       style={{
         position: "absolute",
         left: 130,
         right: 130,
-        top: 380,
-        display: "flex",
-        gap: 32,
+        top: 340,
+        border: "1px solid #536d43",
+        borderRadius: 18,
+        overflow: "hidden",
       }}
     >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1.3fr",
+          padding: "22px 35px",
+          background: "#2c402c",
+          fontSize: 25,
+          color: "#bfd4a6",
+        }}
+      >
+        <span>指针主控</span>
+        <span>光标在哪</span>
+        <span>两副键盘输入到</span>
+      </div>
       {[
-        ["01", "外接鼠标", "IOHIDManager"],
-        ["02", "内建触控板", "MultitouchSupport *"],
-        ["03", "远端注入", "不触发抢控"],
-      ].map(([n, t, s]) => (
+        ["Mac mini", "Mac mini"],
+        ["Mac mini", "MacBook"],
+        ["MacBook", "Mac mini"],
+        ["MacBook", "MacBook"],
+      ].map(([controller, cursor], i) => (
         <div
-          key={n}
+          key={i}
           style={{
-            flex: 1,
-            border: "1px solid #4c6344",
-            background: "#203126",
-            borderRadius: 20,
-            padding: 40,
-            height: 340,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1.3fr",
+            padding: "22px 35px",
+            borderTop: "1px solid #42583a",
+            background: i % 2 ? "#203425" : "#1b2d21",
+            fontSize: 30,
           }}
         >
-          <div style={{ color: "#acc486", fontSize: 24 }}>{n}</div>
-          <h2 style={{ fontSize: 37, marginTop: 60, fontWeight: 500 }}>{t}</h2>
-          <div style={{ fontSize: 24, color: "#9daf8e" }}>{s}</div>
+          <span>{controller}</span>
+          <span>{cursor}</span>
+          <span style={{ color: "#d1e7a9" }}>→ {cursor}</span>
         </div>
       ))}
     </div>
     <div
       style={{
         position: "absolute",
-        top: 770,
+        top: 805,
         left: 130,
-        fontSize: 22,
-        color: "#8fa47e",
+        fontSize: 23,
+        color: "#95aa83",
       }}
     >
-      * 私有框架；系统更新与唤醒后需复测
+      参考双机环境已由用户实测确认；通用安装仍需逐机验收。
     </div>
   </Frame>
 );

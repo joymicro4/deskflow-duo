@@ -47,31 +47,57 @@ export const Desk: React.FC<{ right?: boolean }> = ({ right = false }) => {
                 fontFamily: "monospace",
               }}
             >
-              {r ? "Space to create." : "Keep your flow."}
+              {r ? "Space to create." : "Make room for flow."}
             </div>
-            <div style={{ fontSize: 19, color: "#6e917c", marginTop: 16 }}>
-              {r ? "MacBook · 内建触控板" : "Mac · 外接鼠标"}
+            <div style={{ fontSize: 22, color: "#91aa8d", marginTop: 16 }}>
+              {r ? "MacBook · 内建键盘与触控板" : "Mac mini · 外接键盘与鼠标"}
             </div>
           </div>
-          <div
-            style={{
-              height: 13,
-              borderRadius: "0 0 20px 20px",
-              background: "#8d9b8d",
-              width: "108%",
-              marginLeft: "-4%",
-            }}
-          />
+          {r ? (
+            <div
+              style={{
+                height: 13,
+                borderRadius: "0 0 20px 20px",
+                background: "#8d9b8d",
+                width: "108%",
+                marginLeft: "-4%",
+              }}
+            />
+          ) : (
+            <>
+              <div
+                style={{
+                  height: 12,
+                  width: 100,
+                  background: "#8d9b8d",
+                  margin: "auto",
+                }}
+              />
+              <div
+                style={{
+                  height: 38,
+                  width: 135,
+                  borderRadius: 10,
+                  background: "linear-gradient(#aebaa9,#7d8c7c)",
+                  margin: "auto",
+                  textAlign: "center",
+                  fontSize: 25,
+                  color: "#314230",
+                }}
+              >
+                ◧
+              </div>
+            </>
+          )}
           <div
             style={{
               textAlign: "center",
               fontSize: 21,
               color: "#96a88b",
-              marginTop: 25,
+              marginTop: 18,
             }}
           >
-            {r === right ? "● 主控端" : "被控端"} /{" "}
-            {r ? "右侧 Mac" : "左侧 Mac"}
+            {r === right ? "● 主控端" : "被控端"} / {r ? "MacBook" : "Mac mini"}
           </div>
         </div>
       ))}

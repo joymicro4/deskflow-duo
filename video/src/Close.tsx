@@ -4,10 +4,10 @@ export const Close = () => (
     number="06"
     title={
       <>
-        开源的，<span style={{ color: "#bcd28e" }}>自在桌面配方。</span>
+        Mac mini × MacBook。<span style={{ color: "#bcd28e" }}>接着流动。</span>
       </>
     }
-    subtitle="源码 · 安装脚本 · doctor · AI Skill。先在你的桌面试试看。"
+    subtitle="开源桌面配方：源码、脚本、AI Skill。你的账号，你的习惯。"
   >
     <div
       style={{
@@ -25,9 +25,20 @@ export const Close = () => (
       style={{
         position: "absolute",
         left: 140,
-        top: 555,
-        fontSize: 30,
-        color: "#b4c49b",
+        top: 550,
+        fontSize: 35,
+        color: "#c4d5ac",
+      }}
+    >
+      joymicro.ai/deskflow-duo
+    </div>
+    <div
+      style={{
+        position: "absolute",
+        left: 140,
+        top: 625,
+        fontSize: 28,
+        color: "#a0b391",
       }}
     >
       github.com/joymicro4/deskflow-duo
@@ -36,23 +47,12 @@ export const Close = () => (
       style={{
         position: "absolute",
         left: 140,
-        top: 680,
+        top: 745,
         fontSize: 25,
         color: "#8fa47e",
       }}
     >
-      MIT · 双 Mac 预览版 · by JoyMicro
-    </div>
-    <div
-      style={{
-        position: "absolute",
-        left: 140,
-        top: 750,
-        fontSize: 24,
-        color: "#8fa47e",
-      }}
-    >
-      触控板读取已验证；完整接管链路仍需真机验证。
+      v0.2 · 双 Mac 预览版 · MIT · by JoyMicro
     </div>
   </Frame>
 );

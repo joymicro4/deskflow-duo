@@ -1,160 +1,203 @@
 # ◧ Deskflow Duo
 
-**两台 Mac，一张自在的桌面。换一只手，继续心流。**
-**Two Macs. One calmer desk. Move a pointer to take control.**
+**Mac mini 在桌上，MacBook 在手边。两套键鼠，控制两台 Mac，不需要相同 Apple ID。**
 
-[中文](#中文指南) · [English](#english-guide) · [官网](https://joymicro.ai/deskflow-duo) · [GitHub Pages](https://joymicro4.github.io/deskflow-duo/) · [AI Skill](skills/deskflow-duo/SKILL.md)
+**Mac mini + MacBook. Either keyboard, either pointer. No shared Apple Account required.**
 
-![Animated schematic: external mouse and built-in trackpad take turns controlling two Macs](docs/assets/demo.gif)
+[官网](https://joymicro.ai/deskflow-duo) · [GitHub Pages](https://joymicro4.github.io/deskflow-duo/) · [English](#english) · [AI Skill](skills/deskflow-duo/SKILL.md) · [更新记录](CHANGELOG.md)
 
-> v0.1 developer preview. 双机左右布局；默认只有鼠标/触控板抢控，键盘不抢控。原始环境已确认外接鼠标切换和内建键盘旧规则切换；内建触控板物理触摸读取已确认，**触摸触发接管的完整链路尚未完成正向真机验收**。本仓库的通用安装包仅完成隔离测试，不能视为干净双机实测通过。动画为示意，不是实机录屏。
+![Mac mini and MacBook workflow animation](docs/assets/demo.gif)
 
-## 中文指南
+新 Mac mini 插着键盘鼠标，旁边再放一台 MacBook，两台混着用。外接键鼠能控制两台，MacBook 自带的键盘和触控板也能控制 Mac mini。**四种组合，光标在哪，键盘就输入到哪。** 鼠标/触控板决定谁当主控，键盘不抢控（`keys=0`）。
 
-Deskflow 负责跨屏键鼠传输，Duo 检测正在使用的物理指针，并协调两个 Deskflow 实例的方向。适合左侧 Mac 接外接键鼠、右侧 MacBook 使用内建触控板并连接显示器的桌面；左右顺序可对调。
+v0.2 预览版。用户已在原始双机环境确认四种组合可用；本仓库的参数化安装、协议加固与恢复逻辑经隔离测试，仍须在自己的两台 Mac 上完成验收。动画是示意，不是实机录屏。
 
-```mermaid
-flowchart LR
-  A[外接鼠标 / 内建触控板] --> B[IOHID / Multitouch]
-  B --> C[阈值 + 3 秒防抖]
-  C --> D[本机请求主控]
-  D --> E[监督进程协调客户端连接]
-  E --> F[Deskflow TLS 跨屏输入]
-  F -. 合成输入不触发物理监听 .-> B
-```
+## 首次安装：5 步
 
-两端 server 常驻待命；client 按角色启停。网络不是严格的分布式互斥锁，重连或同时接管可能短暂双向连接，优先节点负责打破平局。连接观察每 0.5 秒执行一次 `lsof`；失去对端客户端超过约 5 秒后回退为 follower。原始双机环境切换链路测得约 0.36–0.78 秒，不能保证其他网络上的端到端延迟。
+**装 Deskflow 与编译依赖 → 两台各跑 install → 互信 TLS 并安全配对共享密钥 → 两台各开启输入监控和辅助功能 → start + doctor + 四组合验收。**
 
-### 安装
+### 1. 安装依赖，下载源码
 
-需要 macOS、Python 3、Xcode Command Line Tools、Deskflow **1.27.0**。目前 Swift 为本机架构构建，不提供公证二进制。先从 [Deskflow 官方发行页](https://github.com/deskflow/deskflow/releases/tag/v1.27.0) 安装匹配架构的 App 到 `/Applications/Deskflow.app`，核对发行资产校验值与 Apple 签名。已有配置请先备份，退出其他 Deskflow GUI/实例以免冲突；不要直接替换正在使用的配置。
+需要 macOS、Python 3、Xcode Command Line Tools、Deskflow **1.27.0**。先备份已有 Deskflow 配置并自行停止冲突实例，不要覆盖正在运行的桌面方案。
 
-在两台 Mac 上分别执行：
+- 从 [Deskflow 官方发行页](https://github.com/deskflow/deskflow/releases/tag/v1.27.0) 安装匹配架构的 App 到 `/Applications/Deskflow.app`，核验校验值与签名。若通过 Homebrew 安装，确认结果是 1.27.0；其他版本的日志/配置格式尚未适配。
+- 首次缺少工具时执行 `xcode-select --install`，完成系统安装窗口。Python 3 可从 python.org 安装。
 
 ```bash
-# 首次缺少编译工具时先执行，系统安装窗口完成后继续
-xcode-select --install
-# Python 3 可从 python.org 安装
-
 git clone https://github.com/joymicro4/deskflow-duo.git
 cd deskflow-duo
 cp config/example.json config/local.json
-# 编辑 local.json：两台机器共享同一份 nodes/layout/preferred
-./scripts/install.sh config/local.json mac-left
-# 另一台的最后一个参数改成 mac-right
 ```
 
-这是单命令本地安装入口；依赖下载、双机指纹核验和系统权限需人工完成。脚本不要求 sudo、不自动下载执行未知程序、不自动改防火墙，也不访问另一台机器。先预览：
+### 2. 编辑桌面配置，在两台分别安装
+
+把文档示例地址替换为自己的稳定地址，保持两端 `nodes/layout/preferred/keyboardForwarding` 一致。建议 DHCP 保留或稳定的主机名。默认是左侧 `mini`，右侧 `macbook`；Air + Pro 另见 `config/air-pro.json`。
 
 ```bash
-python3 scripts/duo.py install --config config/local.json --node mac-left --dry-run
+# 先只预览
+python3 scripts/duo.py install --config config/local.json --node mini --dry-run
+# Mac mini
+./scripts/install.sh config/local.json mini
+# MacBook 上执行同一入口，末尾改成 macbook
 ```
 
-默认数据目录为 `~/Library/Application Support/DeskflowDuo`，四个 LaunchAgent 的前缀为 `ai.joymicro.deskflow-duo.`。安装会构建并复制 App、脚本和配置，生成本机 TLS 证书；**不会自动启动监听与网络服务**。重复安装前先 `stop`，现有文件会备份到状态目录的 `backups/`。
+安装会本地编译 App、生成 TLS 证书、四个 LaunchAgent 和手动接管 App，**不会自动启动**。状态目录为 `~/Library/Application Support/DeskflowDuo`；配置覆盖前自动备份。重装前 `stop`，紧急关闭状态不会被重装清除。
 
-### TLS 互信与授权
+### 3. 配对：TLS 指纹 + 共享键盘密钥
 
-1. 每台执行 `python3 scripts/duo.py fingerprint`，通过可信渠道核对另一台的 SHA-256。指纹可分享，PEM 内含私钥，不可分享。
-2. 每台执行 `python3 scripts/duo.py trust 对方的SHA256`。可含冒号；工具会写入本实例的 `tls/trusted-servers` 与 `tls/trusted-clients`，内容格式为 `v2:sha256:<小写无冒号摘要>`。不会关闭 TLS 校验。
-3. 执行 `python3 scripts/duo.py permissions`。在系统设置 → 隐私与安全性，给 **Deskflow** 开启辅助功能与输入监控；给状态目录 `Duo Auto Switch.app`（Duo Auto Switch）开启输入监控。需要时在系统文件选择器按 ⌘⇧G 输入该目录。权限必须由用户自己点击。
-4. 执行 `python3 scripts/duo.py start`。首次请求授权可能在启动后出现，授权后 `stop` 再 `start`。执行 `doctor`，检查日志中 `WATCH`、`input-monitoring=granted` 与双方安全连接成功记录。
-
-源码自编译默认使用 ad-hoc 签名，指定的 designated requirement 只检查 bundle identifier。**任何使用同一 identifier 的程序都可能继承这条授权**；它是个人本机构建的权衡，不能当作强身份保证。正式分发应使用 Developer ID、绑定证书的签名要求及 Apple 公证，升级后重新验证权限。不要使用其他公司的证书。
-
-### 配置
-
-`config/example.json` 使用 RFC 5737 文档地址，必须替换。地址建议 DHCP 保留或可稳定解析的主机名。两端的节点名称、端口和布局必须一致；本机节点通过 `--node` 指定。
-
-| 配置 | 用途 |
-|---|---|
-| `nodes` | **恰好两台**。更多机器会被拒绝，尚未实现多机仲裁 |
-| `name` / `host` / `port` | Deskflow 屏幕名、地址、各自 server 监听端口；两机可用相同端口 |
-| `input` | `external` 接受 USB/蓝牙物理设备；`builtin` 接受内建设备和内建触控板 |
-| `layout` | 从左到右的两个名称；交换数组顺序可反转布局 |
-| `preferred` | 同时连接时优先主控的节点 |
-| `pointerReports` | 0.5 秒窗口内非零 HID 报告数，默认 6 |
-| `touchFrames` | 0.5 秒内带接触的内建触控帧数，默认 25 |
-| `keyDowns` | 1.5 秒内按键数，默认 **0 = 不抢控**；设为 2 可恢复旧行为，但可能打断输入 |
-| `deviceProduct` | HID 产品名包含匹配；空串接受符合 input 规则的设备。触控板走独立路径，不受该过滤器限制 |
-
-配置从 JSON 解析，不作为 shell 执行。改变配置后 `stop`、重新安装、再 `start`；只变参数无需重新编译。`server.conf` 只写 links，Deskflow 1.27 的屏幕列表在 `Deskflow.conf` 的 `[computer_名称]` 中。
-
-### 日常使用与恢复
+两台分别执行 `python3 scripts/duo.py fingerprint`，通过可信渠道核对对方 SHA-256，然后各自执行：
 
 ```bash
-python3 scripts/duo.py doctor       # 只读检查，警告时 exit 1
-python3 scripts/duo.py claim        # 手动接管，不受输入阈值限制
-python3 scripts/duo.py stop
+python3 scripts/duo.py trust PEER_CERT_SHA256
+```
+
+这只传证书指纹，不传私钥。Deskflow TLS 校验保持开启。键盘转发还需要两端拥有同一个 **32 字节随机二进制密钥**：
+
+```bash
+# 只在一端生成；已存在时拒绝覆盖
+python3 scripts/duo.py keygen
+python3 scripts/duo.py key-fingerprint
+```
+
+推荐在两台都完成 install 后，通过**已经核验过主机身份、可登录的 SSH** 直接配对：
+
+```bash
+# 替换为自己的 SSH 别名/目标；不自动接受未知主机指纹
+python3 scripts/duo.py pair --ssh macbook.example
+```
+
+密钥只经 SSH 的标准输入传输，不放入命令行、剪贴板或临时文件；对端已有密钥时拒绝覆盖。这个便捷入口面向默认状态目录。
+
+也可通过已经核验主机身份的 SSH/SCP 或其他可信加密文件通道，把状态目录中的 `fwd.key` 安全送到另一台的临时私密文件（权限 0600）。不要把密钥打印、复制到聊天或剪贴板、写进仓库或截图。另一台导入后比较两边公开的密钥指纹：
+
+```bash
+python3 scripts/duo.py key-import /path/to/private/transferred-key
+python3 scripts/duo.py key-fingerprint
+```
+
+确认一致后移除临时副本。默认 Mac mini 监听独立 TCP 端口 `24910`，MacBook 连接它；用户需按各自防火墙策略允许该 App/端口，**不需要关闭防火墙或改 DNS**。不要在公网暴露监听端口。两端必须使用相同版本，v0.2 的会话协议不兼容早期运行原型。
+
+### 4. 两台各开启系统授权
+
+```bash
+python3 scripts/duo.py permissions
+```
+
+在系统设置 → 隐私与安全性，给 **Deskflow** 与 **Duo Auto Switch** 都开启「输入监控」和「辅助功能」。Duo App 位于状态目录的 `Duo Auto Switch.app`，文件选择器可用 ⌘⇧G 输入路径。首次启动后可能再次显示授权请求；授权后 stop/start 重启。
+
+必须由用户自己点击，不修改 TCC 数据库。默认本地 ad-hoc 签名的 designated requirement **只认 bundle identifier**，可减少重新编译后的重复授权，但同 ID 的其他程序也可能继承权限。正式发行应使用绑定证书的 Developer ID 签名和公证；本项目尚未公证。
+
+### 5. 启动、自检与四组合验收
+
+```bash
 python3 scripts/duo.py start
-python3 scripts/duo.py uninstall   # 停止并备份、移除本项目 LaunchAgent
+python3 scripts/duo.py doctor
 ```
 
-也可在 Finder 打开状态目录中的 `Duo Take Control.app` 手动接管，可放入 Dock。
+| 指针主控端 | 光标位置 | 外接键盘输入到 | MacBook 键盘输入到 |
+|---|---|---|---|
+| Mac mini | Mac mini | Mac mini | Mac mini |
+| Mac mini | MacBook | MacBook | MacBook |
+| MacBook | Mac mini | Mac mini | Mac mini |
+| MacBook | MacBook | MacBook | MacBook |
 
-卸载保留配置、证书、日志与备份，不删除 Deskflow，不修改其他工具。恢复时重新安装并核对指纹。`DUO_STATE_DIR`、`DUO_LAUNCH_DIR` 可用于隔离测试；真实运行须两者路径固定。
+用鼠标/触控板切换两次，分别打字、测试 ⌘ 快捷键及修饰键释放，再验断线回退、睡眠唤醒和紧急开关。用户已确认参考环境四组合可用；`doctor` 只读本机配置和日志，不能代替你的真机验收。
 
-**键盘路由限制：** server 的物理键盘跟随光标转发，client 的本地物理键盘始终输入本机。若光标在主控端却敲被控端键盘，字会进被控端自己的前台 App。先移动要使用的指针、跨屏定位，再输入。它不是显示器信号切换器，也不传输视频。
+## 日常使用与紧急恢复
 
-### 排障 / FAQ
+- **⌃⌥⌘K**（Control + Option + Command + K）切换键盘跟随，并弹通知。只认物理按键，状态写入 `kbfwd-disabled`，重启/重装仍保留。再按一次恢复。禁用后，被控端键盘只输入本机。
+- `python3 scripts/duo.py claim` 或打开状态目录 `Duo Take Control.app` 手动接管，可将 App 放入 Dock。
+- `stop` 停止本项目服务；`start` 恢复；`uninstall` 备份/移除本项目 LaunchAgent，保留状态、证书、共享密钥与备份，不删除 Deskflow 或其他工具。
+- 共享密钥轮换需先停两端、私下备份旧 key，显式替换两端后重启。工具拒绝静默覆盖密钥。
 
-| 现象 | 检查与处理 |
+## 原理
+
+```mermaid
+flowchart LR
+  P[鼠标 / 内建触控板] --> H[IOHID / Multitouch]
+  H --> R[阈值与 3 秒防抖 → 主控仲裁]
+  R --> D[Deskflow TLS 跨屏输入]
+  K[被控端物理键盘 pid=0] --> G[光标离开 + 鉴权通道可用]
+  G --> C[ChaChaPoly 会话通道]
+  C --> I[主控端注入 → Deskflow 路由至光标]
+```
+
+主控端的键盘由 Deskflow 跟随光标。被控端只在光标不在本机、收到过有效鉴权心跳且对端可注入时，拦截物理按键，经加密通道送回主控端。远端合成事件不再拦截。通道不通、权限不够或紧急关闭时，本地放行；断开和超时清理注入的普通键与修饰键。已经排入网络的最后少量按键仍可能在链路突断时丢失，恢复后需重新输入。
+
+通道使用 CryptoKit ChaChaPoly、32 字节预共享密钥、每连接双方随机 nonce、单调序号和 10 秒时间窗；同连接与跨连接重放均有测试。没有前向保密，也不宣称经过独立安全审计。只在可信网络使用，不能与旧原型混连。日志记录计数，不记录按键内容。
+
+Deskflow 两端 server 待命，client 按角色启停。监督进程每 0.5 秒观察自己管理的进程连接，优先节点打破平局；本机状态更新用进程锁和原子时间戳，避免接管/降级竞态。网络收敛不是严格的分布式互斥。参考切换链路约 0.36–0.78 秒，不保证其他网络的端到端性能。
+
+## 配置
+
+| 字段 | 用途 |
 |---|---|
-| 没有自动切换 | `doctor`、输入监控授权、`logs/auto.log` 的 `WATCH`；默认键盘不触发 |
-| HID `0xe00002c5` | 设备可能被 Karabiner 等独占。让用户自行决定停用，绝不自动卸载 |
-| 触控板没有普通 HID 事件 | Apple Silicon 走私有 MultitouchSupport；日志应有 `WATCH: builtin trackpad`；符号不可用时用手动 `claim` |
-| 手掌轻放也切换 | 当前按接触帧计数，不区分滑动与静止接触；提高阈值或改用手动 |
-| 睡醒后触控无效 | 私有 API 的唤醒恢复尚未验证；stop/start 并复测，不保证系统升级兼容 |
-| 指纹校验失败 | 两端重新核对 `fingerprint`，不要禁用校验；检查证书是否更新、过期 |
-| 连不上 | 检查 host 解析、Wi-Fi 客户端隔离、系统防火墙与选定 TCP 端口；不要自动对公网开放 |
-| 跨屏边缘不对 | 系统设置 → 显示器，对齐本机内建屏与外接屏的可用边缘；仅共享真实相接边缘 |
-| 切换来回跳 | 检查其他 Deskflow 实例、双方 preferred 是否一致，观察 3 秒防抖及约 5 秒收敛 |
-| 改完参数没变化 | 安装使用状态目录中的副本，编辑仓库后须 stop、重新 install、start |
+| `nodes` | 恰好两台；`name/host/port/input` 为屏幕名、地址、Deskflow 端口与 builtin/external 设备来源 |
+| `layout` / `preferred` | 左右顺序 / 平局优先主控节点 |
+| `pointerReports` / `touchFrames` | 0.5 秒内的物理指针报告/触摸帧阈值，默认 6 / 25 |
+| `keyDowns` | 默认 0，键盘不抢控；不建议改为旧键盘抢控行为 |
+| `deviceProduct` | HID 产品名包含过滤；空串接受符合 input 的物理设备，不过滤独立的 Multitouch 路径 |
+| `keyboardForwarding.mode` | on / observe / off；observe 不拦截、不注入，仅诊断 |
+| `keyboardForwarding.listener` / `port` | 监听节点 / 独立 TCP 端口，不能与 Deskflow 端口冲突 |
 
-`doctor` 检查本机配置、依赖、信任文件和监听日志，不读取或修改 TCC 数据库，不能替代真实跨机输入测试。日志留在本机；公开 issue 前脱敏。当前日志未自动轮转，请定期在 stop 后归档。
+JSON 不作为 shell 执行。更多机器、上下排列与任意拓扑尚未实现；Mac 内部多显示器需在系统设置中对齐可跨屏的边缘。更改配置后 stop → install → start，无需为参数变化重新编译。
 
-### 与其他方案比较
+## 与 macOS 通用控制比较
 
-| 方案 | 适用场景 | 代价 / 边界 |
+| 项目 | Deskflow Duo | macOS 通用控制 |
 |---|---|---|
-| macOS 通用控制 | 满足 Apple 设备与账户条件，优先尝试系统方案 | 具体系统、账户与网络要求见 [Apple 官方说明](https://support.apple.com/102459) |
-| Deskflow | 跨设备的软件键鼠共享，手动选择服务角色 | Duo 是独立附加层；Deskflow 的平台支持不等于 Duo 已跨平台验证 |
-| Barrier | 既有 Barrier 工作流 | [Barrier 项目](https://github.com/debauchee/barrier) 与 Deskflow 配置/版本不同，本工具不直接支持 |
-| Deskflow Duo | 希望按物理鼠标/触控板自动换向的双 Mac 桌面 | 私有触控 API、权限与客户端键盘路由限制；多机未实现 |
+| 同一个 Apple ID / Apple Account | **不需要**，依靠网络与密钥配对 | 需要相同 Apple Account，并开启双重认证 |
+| 同事 / 公司机器 | 可使用不同账号，仍需设备权限和组织策略允许 | 不同账号的机器不满足原生账户要求；仍受组织策略约束 |
+| 键盘跟随光标 | 两套键盘均可；需启用 v0.2 转发 | 支持连接设备间的键盘、鼠标、触控板操作 |
+| 开源 | Duo MIT；Deskflow GPL-2.0 | Apple 系统内建功能，未作为开源项目提供 |
+| 覆盖范围 | 当前两台 Mac，需安装与权限 | 官方支持的 Mac / iPad，满足系统和距离要求 |
 
-### AI Skill
+账户与设备要求依据 [Apple 官方说明](https://support.apple.com/102459)。Deskflow 自身是 [开源软件 KVM](https://github.com/deskflow/deskflow)，Duo 是独立的 macOS 附加层；Barrier 的配置与版本不同，本工具不直接支持 Barrier。
 
-把整个仓库放在固定位置，把 `skills/deskflow-duo` 链接到 `~/.claude/skills/deskflow-duo` 或 `~/.codex/skills/deskflow-duo`。告诉 Agent 仓库位置并请求配置双 Mac；Skill 会先盘点、生成 dry-run，再指导人工授权与逐项验收，不擅自覆盖运行配置。
+## 排障 / 已知边界
 
-## English guide
+| 现象 | 处理 |
+|---|---|
+| 键盘没跟随 | 两端同版本、`key-fingerprint` 一致、0600、独立端口可达、两端双权限、日志有鉴权 pong 与 tap ok |
+| 输入回到本机 | 通道或对端权限不可用时按设计本地放行；检查 doctor，不要关闭安全校验 |
+| 安全输入 / 密码框 | macOS 可能阻止 event tap，按键留在本机；不要绕过系统保护 |
+| 输入法/布局不同 | 远端转发使用主控端的输入法和键盘布局 |
+| ⌘ 卡住 / 链路异常 | ⌃⌥⌘K 紧急关闭；本版断线/超时会释放注入状态，重启并复测 |
+| HID `0xe00002c5` | 设备可能被 Karabiner 独占；不自动卸载已有工具 |
+| 触控板 | 使用私有 MultitouchSupport，系统更新可能失效；静止手掌接触也计入帧；手动 claim 兜底 |
+| 睡眠唤醒 | 唤醒时进程退出、由 launchd 重建监听与通道；仍需逐系统版本复测 |
+| 日志判断不准 | 依赖 Deskflow 1.27 entering/leaving 等日志文案；其他版本未适配 |
+| 证书 / 连接失败 | 检查 TLS 指纹、证书期限、主机解析、Wi-Fi 隔离及防火墙；不自动修改 DNS/防火墙 |
 
-Deskflow Duo adds physical-pointer takeover to a two-Mac Deskflow setup. Move the external mouse on one Mac or use the built-in trackpad on the other to request control. **Keyboard takeover is disabled by default.** This is a developer preview: physical touch capture is confirmed in the original environment, but touch-triggered takeover still needs a positive hardware acceptance test. The generalized installer has only been tested in isolation.
+日志尚无自动轮转，定期 stop 后归档。公开 issue 前脱敏。仅在你有权操作的设备上安装；不记录或上传打字内容，不需要 Apple ID 或云账户凭据。
 
-1. Install Python 3, Xcode Command Line Tools and the official Deskflow **1.27.0** app. Back up existing settings and stop conflicting instances yourself.
-2. Clone this repository on both Macs. Copy `config/example.json` to `config/local.json`; replace documentation addresses, names, ports and left-to-right layout. Use the same topology on both machines.
-3. Run `./scripts/install.sh config/local.json mac-left` on the left Mac, and use `mac-right` on the other. Preview first with `python3 scripts/duo.py install --config config/local.json --node mac-left --dry-run`.
-4. Run `python3 scripts/duo.py fingerprint` on each. Independently verify the peer's SHA-256 and run `python3 scripts/duo.py trust PEER_SHA256` on both. Never copy private PEM keys or disable verification.
-5. Run `python3 scripts/duo.py permissions`. Manually grant Deskflow Accessibility and Input Monitoring, and Duo Auto Switch Input Monitoring. Run `start`; restart after permissions change, then run `doctor`.
-6. Test external-pointer takeover, cross-screen typing, built-in-trackpad takeover while that Mac is a follower, simultaneous use, sleep/wake and manual `claim` before relying on it.
+## AI Skill
 
-Configuration: exactly two nodes, configurable horizontal order, host/port, preferred tie-break node, `input` (`builtin`/`external`), HID `deviceProduct` substring, `pointerReports` (6), `touchFrames` (25), `keyDowns` (0). Three or more nodes are rejected. Nonzero `keyDowns` enables the older keyboard takeover behavior, which can interrupt typing. JSON is never shell-sourced. Reinstall after changes; stop first. State and backups live in `~/Library/Application Support/DeskflowDuo`.
+将仓库放在固定目录，把 `skills/deskflow-duo` 链接到 `~/.claude/skills/deskflow-duo` 或 `~/.codex/skills/deskflow-duo`。告诉 Agent 仓库位置，请它生成 dry-run、配置两台 Mac 并引导权限及配对；它不能代替你点击授权，也不能把密钥发进聊天。
 
-Architecture: IOHID physical events and private MultitouchSupport contact frames → thresholds → 3-second debounce → local role change → Deskflow TLS client coordination. Servers remain ready; clients follow the current role. Polling and a preferred-node tie-break converge after conflicts; this is not strict distributed mutual exclusion. Original switching-link measurements were 0.36–0.78 seconds, not a latency guarantee.
+## English
 
-Troubleshooting: missing `WATCH` / permission logs means check Input Monitoring and filters. `0xe00002c5` may indicate a seized device (for example Karabiner); do not automatically uninstall other tools. Private MultitouchSupport may break after OS updates or sleep; stationary contact can trigger takeover. Use `claim` as fallback. Align physical display edges in macOS settings. Check peer trust, host resolution, firewall and TCP ports for connection failures. `doctor` is read-only and cannot prove TCC grants or end-to-end hardware behavior.
+A Mac mini with an external keyboard/mouse sits next to a MacBook. Either pointer controls both Macs; either keyboard types wherever the cursor is. **No shared Apple Account is required.** Pointer activity selects the controller; keyboards never claim control by default.
 
-Keyboard routing: a server keyboard follows the cursor; a client's physical keyboard always types locally. Move the desired pointer and position the cursor before typing. This does not switch video signals. Prefer Apple's Universal Control if its device/account requirements fit. Barrier is a separate project and is not directly supported. See the linked official sources above.
+Install in five stages: official Deskflow 1.27.0 + Python 3 + Command Line Tools → install on each node → verify TLS fingerprints and securely share the 32-byte forwarding key → manually grant both apps Input Monitoring and Accessibility on both Macs → start, doctor and test all four controller/cursor combinations.
 
-Local builds use ad-hoc signing with an identifier-only designated requirement: another executable with the same identifier may inherit permissions. Formal distribution needs certificate-bound Developer ID signing and notarization. No bypass of macOS permission dialogs is provided. `stop` stops only Duo jobs; `uninstall` backs up/removes its LaunchAgents and keeps state/keys for recovery. Logs are local and currently require manual archival.
+Copy `config/example.json`, replace documentation addresses, and run `./scripts/install.sh config/local.json mini` on the mini and `... macbook` on the MacBook. Use `fingerprint` / `trust PEER_CERT_SHA256` for TLS. Run `keygen` on one side, then `pair --ssh macbook.example` over pre-established SSH with a verified host key. This sends the key only through encrypted stdin and compares public fingerprints; it refuses to overwrite an existing peer key. Alternatively use authenticated file transfer plus `key-import PRIVATE_FILE`. Never print, paste or commit keys. The listener and independent port are configurable. Both ends must run the same version.
+
+The follower forwards only physical (`pid=0`) key events while its cursor has left, an authenticated peer can inject, and forwarding is enabled. ChaChaPoly frames bind both session nonces, sequence and timestamp; release/timeout/disconnect clears injected keys and modifiers. Control-Option-Command-K toggles forwarding with a notification and persists across reinstalls. Broken channels fail open to local typing; a few in-flight events can be lost during abrupt failure. Secure Input can prevent capture, and the controller's input method/layout applies.
+
+The reference two-Mac setup was confirmed by the user for all four combinations. This generalized build adds protocol/recovery hardening tested in isolation and still requires acceptance on your hardware. Private MultitouchSupport can change; stationary contact counts. This is a two-Mac preview, not multi-node arbitration. Local identifier-only ad-hoc signing can allow same-ID apps to inherit permissions; formal distribution requires certificate-bound signing and notarization. Logs need manual archival.
+
+Apple Universal Control requires the same Apple Account with two-factor authentication; see the linked Apple documentation. Duo can pair different accounts on colleague/company Macs if permissions and organizational policies allow. No Apple credentials or cloud account are needed.
 
 ## Development / License
 
 ```bash
+./scripts/build.sh
+./scripts/test-protocol.sh
 python3 -m unittest discover -s tests
 bash -n scripts/*.sh
-./scripts/build.sh
 cd video && npm ci && npm run lint
-npm run dev -- --port=4190
 npx remotion render src/index.ts DeskflowDuo out/deskflow-duo.mp4
 ```
 
-MIT for Duo source, documentation and illustrations; Deskflow retains its own [GPL-2.0 license](https://github.com/deskflow/deskflow/blob/v1.27.0/LICENSE). It is not vendored here. Remotion has separate [licensing terms](https://www.remotion.dev/license). Narration is AI-generated with Doubao's Taiwan-accent Xiaohe voice; credentials are never included. See [video production notes](video/README.md).
+Tests never load LaunchAgents or hook real keyboards. Use temporary `DUO_STATE_DIR` and `DUO_LAUNCH_DIR` for install tests. Duo source/docs/illustrations: MIT. Deskflow retains [GPL-2.0](https://github.com/deskflow/deskflow/blob/v1.27.0/LICENSE); Remotion has [separate terms](https://www.remotion.dev/license). The Remotion development toolchain currently reports 10 high transitive npm audit findings; the static website does not load that toolchain. AI narration uses Doubao's Taiwan-accent Xiaohe voice; credentials are not included.

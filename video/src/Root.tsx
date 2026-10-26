@@ -11,7 +11,7 @@ export const RemotionRoot = () => (
     <Composition
       id="DeskflowDuo"
       component={MyComposition}
-      durationInFrames={2340}
+      durationInFrames={2520}
       fps={30}
       width={1920}
       height={1080}
@@ -20,7 +20,7 @@ export const RemotionRoot = () => (
       <Composition
         id="Problem"
         component={Problem}
-        durationInFrames={390}
+        durationInFrames={420}
         fps={30}
         width={1920}
         height={1080}
@@ -28,7 +28,7 @@ export const RemotionRoot = () => (
       <Composition
         id="Effect"
         component={Effect}
-        durationInFrames={390}
+        durationInFrames={420}
         fps={30}
         width={1920}
         height={1080}
@@ -36,7 +36,7 @@ export const RemotionRoot = () => (
       <Composition
         id="Physical"
         component={Physical}
-        durationInFrames={390}
+        durationInFrames={420}
         fps={30}
         width={1920}
         height={1080}
@@ -44,7 +44,7 @@ export const RemotionRoot = () => (
       <Composition
         id="Protocol"
         component={Protocol}
-        durationInFrames={390}
+        durationInFrames={420}
         fps={30}
         width={1920}
         height={1080}
@@ -52,7 +52,7 @@ export const RemotionRoot = () => (
       <Composition
         id="Install"
         component={Install}
-        durationInFrames={390}
+        durationInFrames={420}
         fps={30}
         width={1920}
         height={1080}
@@ -60,7 +60,7 @@ export const RemotionRoot = () => (
       <Composition
         id="Close"
         component={Close}
-        durationInFrames={390}
+        durationInFrames={420}
         fps={30}
         width={1920}
         height={1080}

@@ -91,7 +91,7 @@ export const Frame: React.FC<{
           color: "#71876d",
         }}
       >
-        动画示意 · AI 配音 · 触控板接管待真机验收
+        动画示意 · AI 配音 · 双机预览版 · 请逐机验收
       </div>
     </AbsoluteFill>
   );

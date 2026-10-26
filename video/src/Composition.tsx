@@ -11,7 +11,7 @@ export const MyComposition = () => {
     <Series>
       <Series.Sequence
         name="Problem"
-        durationInFrames={13 * fps}
+        durationInFrames={14 * fps}
         premountFor={fps}
       >
         <Problem />
@@ -19,7 +19,7 @@ export const MyComposition = () => {
       </Series.Sequence>
       <Series.Sequence
         name="Effect"
-        durationInFrames={13 * fps}
+        durationInFrames={14 * fps}
         premountFor={fps}
       >
         <Effect />
@@ -27,7 +27,7 @@ export const MyComposition = () => {
       </Series.Sequence>
       <Series.Sequence
         name="Physical"
-        durationInFrames={13 * fps}
+        durationInFrames={14 * fps}
         premountFor={fps}
       >
         <Physical />
@@ -35,7 +35,7 @@ export const MyComposition = () => {
       </Series.Sequence>
       <Series.Sequence
         name="Protocol"
-        durationInFrames={13 * fps}
+        durationInFrames={14 * fps}
         premountFor={fps}
       >
         <Protocol />
@@ -43,7 +43,7 @@ export const MyComposition = () => {
       </Series.Sequence>
       <Series.Sequence
         name="Install"
-        durationInFrames={13 * fps}
+        durationInFrames={14 * fps}
         premountFor={fps}
       >
         <Install />
@@ -51,7 +51,7 @@ export const MyComposition = () => {
       </Series.Sequence>
       <Series.Sequence
         name="Close"
-        durationInFrames={13 * fps}
+        durationInFrames={14 * fps}
         premountFor={fps}
       >
         <Close />
