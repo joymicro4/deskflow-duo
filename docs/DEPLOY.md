@@ -1,4 +1,4 @@
-# 静态部署草案
+# 静态部署说明
 
 此目录所有资源采用相对 URL，可托管在 GitHub Pages 或任意子路径。不要改 DNS 或替换站点首页。
 
@@ -15,4 +15,4 @@ JoyMicro `website` 仓库为 Next.js，`vercel.json` 指定 `npm run build:verce
 5. 得到明确“发布”后才合并进入现有部署 CI；线上检查该路径、原首页与其他路由。失败时回滚该提交，不改 DNS。
 6. 发布本仓库与带视频资产的 GitHub Release；如启用 Pages，仅发布 docs/，不得暴露本机报告与配置。
 
-发布前：本仓库保持 private，网页和 MP4 只在本地预览；不得把示意视频当作实际双机验收证据。
+首次公开前需完成私有审阅与明确发布授权。当前公开入口为 https://joymicro.ai/deskflow-duo 和 https://joymicro4.github.io/deskflow-duo/ 。后续更新继续沿用上述流程；不得把示意视频当作实际双机验收证据。

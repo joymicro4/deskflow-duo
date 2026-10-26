@@ -3,7 +3,7 @@
 **两台 Mac，一张自在的桌面。换一只手，继续心流。**
 **Two Macs. One calmer desk. Move a pointer to take control.**
 
-[中文](#中文指南) · [English](#english-guide) · [交互展示](docs/index.html) · [AI Skill](skills/deskflow-duo/SKILL.md)
+[中文](#中文指南) · [English](#english-guide) · [官网](https://joymicro.ai/deskflow-duo) · [GitHub Pages](https://joymicro4.github.io/deskflow-duo/) · [AI Skill](skills/deskflow-duo/SKILL.md)
 
 ![Animated schematic: external mouse and built-in trackpad take turns controlling two Macs](docs/assets/demo.gif)
 
